@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todo App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#f5f5f5;--card:#fff;--accent:#ff6d5a;--accent-hover:#e85d4a;
+      --accent-gradient:linear-gradient(135deg,#ff6d5a,#ff8a6a);
+      --text:#1a1a2e;--text-muted:#8e8ea0;--border:#e8e8ee;
+      --input-bg:#fff;--shadow:0 2px 8px rgba(0,0,0,.06);
+      --shadow-hover:0 4px 16px rgba(0,0,0,.1);--radius:12px;
+      --transition:.25s cubic-bezier(.4,0,.2,1);
+    }
+    [data-theme="dark"]{
+      --bg:#1a1a2e;--card:#242440;--text:#e8e8ee;--text-muted:#8e8ea0;
+      --border:#3a3a5c;--input-bg:#1e1e36;
+      --shadow:0 2px 8px rgba(0,0,0,.25);--shadow-hover:0 4px 16px rgba(0,0,0,.35);
+    }
+    *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;justify-content:center;padding:40px 16px;transition:background var(--transition),color var(--transition)}
+    .app{width:100%;max-width:600px}
+
+    .header{text-align:center;margin-bottom:32px}
+    .header h1{font-size:2rem;font-weight:700;margin-bottom:4px}
+    .header h1 span{color:var(--accent)}
+    .header p{color:var(--text-muted);font-size:.95rem}
+    .header-row{display:flex;justify-content:center;align-items:center;position:relative;margin-bottom:4px}
+    .btn-theme{position:absolute;right:0;background:var(--card);border:2px solid var(--border);border-radius:10px;width:42px;height:42px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all var(--transition);box-shadow:var(--shadow)}
+    .btn-theme:hover{border-color:var(--accent);box-shadow:var(--shadow-hover);transform:translateY(-1px)}
+    .btn-theme svg{width:20px;height:20px;transition:transform .4s ease}
+    .btn-theme:hover svg{transform:rotate(20deg)}
+    .icon-sun,.icon-moon{display:none}
+    [data-theme="light"] .icon-moon{display:block}
+    [data-theme="dark"] .icon-sun{display:block}
+
+    .input-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;display:flex;gap:12px;margin-bottom:24px;transition:box-shadow var(--transition),background var(--transition)}
+    .input-card:focus-within{box-shadow:var(--shadow-hover)}
+    .input-card input[type="text"]{flex:1;border:2px solid var(--border);border-radius:8px;padding:12px 16px;font-family:inherit;font-size:.95rem;color:var(--text);background:var(--input-bg);outline:none;transition:border-color var(--transition)}
+    .input-card input[type="text"]::placeholder{color:var(--text-muted)}
+    .input-card input[type="text"]:focus{border-color:var(--accent)}
+    .btn-add{background:var(--accent-gradient);color:#fff;border:none;border-radius:8px;padding:12px 24px;font-family:inherit;font-size:.95rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:transform var(--transition),box-shadow var(--transition)}
+    .btn-add:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(255,109,90,.35)}
+
+    .task-list{display:flex;flex-direction:column;gap:10px;margin-bottom:24px}
+
+    .task-item{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);transition:box-shadow var(--transition),transform var(--transition),background var(--transition);animation:slideIn .3s ease-out}
+    .task-item:hover{box-shadow:var(--shadow-hover);transform:translateY(-1px)}
+    .task-item.removing{animation:slideOut .3s ease-in forwards}
+    .task-item.completing{animation:pulse .3s ease}
+    .task-row{display:flex;align-items:center;gap:12px;padding:14px 16px}
+
+    .checkbox-wrapper{position:relative;width:22px;height:22px;flex-shrink:0}
+    .checkbox-wrapper input{position:absolute;opacity:0;width:100%;height:100%;cursor:pointer;z-index:1}
+    .checkmark{position:absolute;top:0;left:0;width:22px;height:22px;border:2px solid var(--border);border-radius:6px;transition:all var(--transition);display:flex;align-items:center;justify-content:center}
+    .checkmark svg{width:12px;height:12px;stroke:#fff;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:0;transform:scale(0);transition:all var(--transition)}
+    .checkbox-wrapper input:checked+.checkmark{background:var(--accent);border-color:var(--accent)}
+    .checkbox-wrapper input:checked+.checkmark svg{opacity:1;transform:scale(1)}
+
+    .task-content{flex:1;min-width:0}
+    .task-text{font-size:.95rem;line-height:1.4;word-break:break-word;transition:color var(--transition)}
+    .task-item.completed .task-text{color:var(--text-muted);text-decoration:line-through}
+
+    .task-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
+
+    /* Due badge - couleurs bien visibles */
+    .due-badge{display:inline-flex;align-items:center;gap:4px;font-size:.73rem;font-weight:600;padding:4px 10px;border-radius:20px;white-space:nowrap;cursor:default}
+    .due-badge svg{width:11px;height:11px;flex-shrink:0}
+    .due-badge.due-green{background:#d5f5e3;color:#1e8449;border:2px solid #2ecc71}
+    .due-badge.due-yellow{background:#fdebd0;color:#b9770e;border:2px solid #f39c12}
+    .due-badge.due-red{background:#fadbd8;color:#a93226;border:2px solid #e74c3c}
+    .due-badge.overdue{animation:pulseBadge 1.8s ease-in-out infinite}
+    .task-item.completed .due-badge{opacity:.35;animation:none}
+    [data-theme="dark"] .due-badge.due-green{background:rgba(46,204,113,.3);color:#82e0aa;border-color:#2ecc71}
+    [data-theme="dark"] .due-badge.due-yellow{background:rgba(243,156,18,.3);color:#f8c471;border-color:#f39c12}
+    [data-theme="dark"] .due-badge.due-red{background:rgba(231,76,60,.3);color:#f1948a;border-color:#e74c3c}
+    @keyframes pulseBadge{0%,100%{opacity:1}50%{opacity:.5}}
+
+    /* Date input visible */
+    .date-input{border:1.5px solid var(--border);border-radius:6px;padding:2px 6px;font-family:inherit;font-size:.72rem;color:var(--text);background:var(--input-bg);cursor:pointer;height:28px;outline:none;transition:border-color var(--transition),box-shadow var(--transition)}
+    .date-input:hover,.date-input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(255,109,90,.15)}
+    .date-input::-webkit-calendar-picker-indicator{cursor:pointer;opacity:.7;transition:opacity .2s}
+    .date-input:hover::-webkit-calendar-picker-indicator{opacity:1}
+    [data-theme="dark"] .date-input{color-scheme:dark}
+    [data-theme="dark"] .date-input::-webkit-calendar-picker-indicator{filter:invert(1)}
+
+    .btn-action{background:none;border:none;cursor:pointer;padding:6px;border-radius:6px;color:var(--text-muted);display:inline-flex;align-items:center;justify-content:center;transition:color var(--transition),background var(--transition),opacity var(--transition);opacity:0;flex-shrink:0}
+    .btn-action svg{width:18px;height:18px}
+    .task-item:hover .btn-action{opacity:1}
+    .btn-action.active{opacity:1;color:var(--accent)}
+    .btn-action.btn-delete:hover{color:#e74c3c;background:rgba(231,76,60,.08)}
+    .btn-action.btn-comment:hover{color:var(--accent);background:rgba(255,109,90,.08)}
+
+    .comment-section{max-height:0;overflow:hidden;opacity:0;transition:max-height .3s ease,opacity .25s ease}
+    .comment-section.open{max-height:200px;opacity:1}
+    .comment-inner{padding:0 16px 14px 50px}
+    .comment-section textarea{width:100%;border:2px solid var(--border);border-radius:8px;padding:10px 14px;font-family:inherit;font-size:.85rem;color:var(--text);background:var(--input-bg);outline:none;resize:vertical;min-height:60px;max-height:120px;transition:border-color var(--transition);line-height:1.5}
+    .comment-section textarea::placeholder{color:var(--text-muted)}
+    .comment-section textarea:focus{border-color:var(--accent)}
+
+    .footer{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 20px;display:flex;justify-content:space-between;align-items:center;transition:background var(--transition)}
+    .counter{font-size:.9rem;color:var(--text-muted);font-weight:500}
+    .counter strong{color:var(--accent);font-weight:700}
+    .btn-clear{background:none;border:1px solid var(--border);border-radius:8px;padding:8px 16px;font-family:inherit;font-size:.85rem;font-weight:500;color:var(--text-muted);cursor:pointer;transition:all var(--transition)}
+    .btn-clear:hover{border-color:#e74c3c;color:#e74c3c}
+
+    .empty-state{text-align:center;padding:48px 20px;color:var(--text-muted)}
+    .empty-state svg{width:64px;height:64px;margin-bottom:16px;opacity:.3}
+
+    .toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+    .toast{background:var(--card);border:2px solid var(--accent);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.15);padding:14px 18px;display:flex;align-items:flex-start;gap:10px;min-width:280px;max-width:380px;pointer-events:auto;animation:toastIn .35s ease-out}
+    .toast.removing{animation:toastOut .3s ease-in forwards}
+    .toast-icon{flex-shrink:0;width:20px;height:20px;color:var(--accent)}
+    .toast-body{flex:1}
+    .toast-title{font-size:.85rem;font-weight:600;color:var(--text);margin-bottom:2px}
+    .toast-msg{font-size:.8rem;color:var(--text-muted)}
+    .toast-close{background:none;border:none;color:var(--text-muted);cursor:pointer;padding:2px}
+
+    @keyframes slideIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes slideOut{from{opacity:1;transform:translateX(0);max-height:300px}to{opacity:0;transform:translateX(30px);max-height:0;margin:0}}
+    @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
+    @keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+    @keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(40px)}}
+
+    @media(max-width:480px){
+      body{padding:24px 12px}
+      .header h1{font-size:1.6rem}
+      .input-card{flex-direction:column}
+      .btn-add{width:100%}
+      .btn-action{opacity:1}
+      .toast-container{left:12px;right:12px}
+      .toast{min-width:auto}
+    }
+  </style>
+</head>
+<body>
+  <div class="toast-container" id="toastContainer"></div>
+  <div class="app">
+    <div class="header">
+      <div class="header-row">
+        <h1>Mes <span>Tâches</span></h1>
+        <button class="btn-theme" id="btnTheme" title="Changer de thème">
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+        </button>
+      </div>
+      <p>Organisez votre journée simplement</p>
+    </div>
+    <div class="input-card">
+      <input type="text" id="taskInput" placeholder="Ajouter une nouvelle tâche..." autocomplete="off">
+      <button class="btn-add" id="btnAdd">Ajouter</button>
+    </div>
+    <div class="task-list" id="taskList"></div>
+    <div class="footer" id="footer">
+      <span class="counter" id="counter"></span>
+      <button class="btn-clear" id="btnClear">Effacer complétées</button>
+    </div>
+  </div>
+  <script>
+    (function(){const s=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',s||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'))})();
+
+    class TodoApp {
+      constructor() {
+        this.tasks = this.load();
+        this.el = id => document.getElementById(id);
+        this.clockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+        this.bind();
+        this.render();
+        this.initReminders();
+        // Safety net: save all date inputs every 2 seconds
+        setInterval(() => this.saveAllDates(), 2000);
+      }
+
+      load() {
+        try {
+          return (JSON.parse(localStorage.getItem('todos')) || []).map(t => {
+            // Normalize: strip time part if old datetime-local format "YYYY-MM-DDThh:mm"
+            let dd = t.dueDate || null;
+            if (dd && dd.includes('T')) dd = dd.split('T')[0];
+            return { id: t.id, text: t.text || '', completed: !!t.completed,
+              comment: t.comment || '', dueDate: dd, reminded: !!t.reminded };
+          });
+        } catch(e) { return []; }
+      }
+
+      save() {
+        localStorage.setItem('todos', JSON.stringify(this.tasks));
+      }
+
+      // Periodically scan all date inputs and save their values
+      saveAllDates() {
+        let changed = false;
+        document.querySelectorAll('.task-item').forEach(el => {
+          const id = Number(el.dataset.id);
+          const input = el.querySelector('.date-input');
+          if (!input) return;
+          const val = input.value || null;
+          const t = this.tasks.find(x => x.id === id);
+          if (t && t.dueDate !== val) {
+            t.dueDate = val;
+            t.reminded = false;
+            changed = true;
+            // Update badge in-place
+            this.updateBadgeFor(el, t);
+          }
+        });
+        if (changed) this.save();
+      }
+
+      // Update or create badge for a specific task element
+      updateBadgeFor(el, t) {
+        const actions = el.querySelector('.task-actions');
+        const oldBadge = actions.querySelector('.due-badge');
+        if (oldBadge) oldBadge.remove();
+        if (t.dueDate) {
+          const cls = this.getDueClass(t.dueDate);
+          const span = document.createElement('span');
+          span.className = 'due-badge ' + cls;
+          span.innerHTML = this.clockSvg + '<span class="due-label">' + this.esc(this.formatDue(t.dueDate)) + '</span>';
+          actions.insertBefore(span, actions.firstChild);
+        }
+      }
+
+      bind() {
+        this.el('btnAdd').addEventListener('click', () => this.addTask());
+        this.el('taskInput').addEventListener('keydown', e => { if (e.key === 'Enter') this.addTask(); });
+        this.el('btnClear').addEventListener('click', () => this.clearCompleted());
+        this.el('btnTheme').addEventListener('click', () => {
+          const n = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+          document.documentElement.setAttribute('data-theme', n);
+          localStorage.setItem('theme', n);
+        });
+      }
+
+      addTask() {
+        const text = this.el('taskInput').value.trim();
+        if (!text) return;
+        // Save any unsaved date changes before re-rendering
+        this.saveAllDates();
+        this.tasks.unshift({ id: Date.now(), text, completed: false, comment: '', dueDate: null, reminded: false });
+        this.el('taskInput').value = '';
+        this.el('taskInput').focus();
+        this.save();
+        this.render();
+      }
+
+      toggleTask(id) {
+        this.saveAllDates();
+        const t = this.tasks.find(x => x.id === id);
+        if (!t) return;
+        t.completed = !t.completed;
+        this.save();
+        const el = document.querySelector(`[data-id="${id}"]`);
+        if (el) {
+          el.classList.toggle('completed', t.completed);
+          el.classList.add('completing');
+          el.addEventListener('animationend', () => el.classList.remove('completing'), { once: true });
+        }
+        this.updateCounter();
+      }
+
+      deleteTask(id) {
+        this.saveAllDates();
+        const el = document.querySelector(`[data-id="${id}"]`);
+        if (!el) return;
+        el.classList.add('removing');
+        el.addEventListener('animationend', () => {
+          this.tasks = this.tasks.filter(t => t.id !== id);
+          this.save();
+          this.render();
+        }, { once: true });
+      }
+
+      toggleComment(id) {
+        const s = document.querySelector(`[data-id="${id}"] .comment-section`);
+        if (!s) return;
+        s.classList.toggle('open');
+        if (s.classList.contains('open')) s.querySelector('textarea').focus();
+      }
+
+      updateComment(id, v) {
+        const t = this.tasks.find(x => x.id === id);
+        if (!t) return;
+        t.comment = v;
+        this.save();
+        const b = document.querySelector(`[data-id="${id}"] .btn-comment`);
+        if (b) b.classList.toggle('active', v.trim().length > 0);
+      }
+
+      getDueClass(d) {
+        if (!d) return '';
+        const parts = d.split('-');
+        const due = new Date(parts[0], parts[1] - 1, parts[2]);
+        const now = new Date(); now.setHours(0, 0, 0, 0);
+        const days = Math.round((due - now) / 864e5);
+        if (days < 0) return 'due-red overdue';
+        if (days < 5) return 'due-red';
+        if (days < 15) return 'due-yellow';
+        return 'due-green';
+      }
+
+      formatDue(d) {
+        // d is "YYYY-MM-DD" from input type="date"
+        const parts = d.split('-');
+        const due = new Date(parts[0], parts[1] - 1, parts[2]);
+        const now = new Date(); now.setHours(0, 0, 0, 0);
+        const diffDays = Math.round((due - now) / 864e5);
+        const dateStr = due.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+        if (diffDays < 0) return 'En retard ' + Math.abs(diffDays) + 'j';
+        if (diffDays === 0) return "Aujourd'hui";
+        if (diffDays === 1) return 'Demain';
+        if (diffDays <= 7) return dateStr + ' (' + diffDays + 'j)';
+        return dateStr;
+      }
+
+      initReminders() {
+        if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission();
+        this.checkReminders();
+        setInterval(() => this.checkReminders(), 30000);
+        setInterval(() => this.refreshBadges(), 60000);
+      }
+
+      checkReminders() {
+        const now = new Date(); now.setHours(0, 0, 0, 0);
+        this.tasks.forEach(t => {
+          if (!t.dueDate || t.completed || t.reminded) return;
+          const parts = t.dueDate.split('-');
+          const due = new Date(parts[0], parts[1] - 1, parts[2]);
+          const days = Math.round((due - now) / 864e5);
+          if (days <= 1) {
+            t.reminded = true;
+            this.save();
+            const title = days < 0 ? 'Tâche en retard !' : 'Rappel de tâche';
+            this.showToast(title, t.text);
+            if ('Notification' in window && Notification.permission === 'granted')
+              new Notification(title, { body: t.text });
+          }
+        });
+      }
+
+      refreshBadges() {
+        document.querySelectorAll('.task-item').forEach(el => {
+          const t = this.tasks.find(x => x.id === Number(el.dataset.id));
+          if (!t || !t.dueDate) return;
+          this.updateBadgeFor(el, t);
+        });
+      }
+
+      showToast(title, msg) {
+        const t = document.createElement('div'); t.className = 'toast';
+        t.innerHTML = '<svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><div class="toast-body"><div class="toast-title">' + this.esc(title) + '</div><div class="toast-msg">' + this.esc(msg) + '</div></div><button class="toast-close">&times;</button>';
+        this.el('toastContainer').appendChild(t);
+        const dismiss = () => { if (!t.classList.contains('removing')) { t.classList.add('removing'); t.addEventListener('animationend', () => t.remove(), { once: true }); } };
+        t.querySelector('.toast-close').addEventListener('click', dismiss);
+        setTimeout(dismiss, 8000);
+      }
+
+      clearCompleted() {
+        this.saveAllDates();
+        const els = document.querySelectorAll('.task-item.completed');
+        if (!els.length) return;
+        let n = els.length;
+        els.forEach(el => {
+          el.classList.add('removing');
+          el.addEventListener('animationend', () => {
+            if (--n === 0) { this.tasks = this.tasks.filter(t => !t.completed); this.save(); this.render(); }
+          }, { once: true });
+        });
+      }
+
+      render() {
+        const list = this.el('taskList');
+        const footer = this.el('footer');
+
+        if (!this.tasks.length) {
+          list.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><p>Aucune tâche pour le moment</p></div>';
+          footer.style.display = 'none';
+          return;
+        }
+
+        footer.style.display = 'flex';
+
+        list.innerHTML = this.tasks.map(t => {
+          const cls = this.getDueClass(t.dueDate);
+          const badge = t.dueDate
+            ? '<span class="due-badge ' + cls + '">' + this.clockSvg + '<span class="due-label">' + this.esc(this.formatDue(t.dueDate)) + '</span></span>'
+            : '';
+
+          return '<div class="task-item ' + (t.completed ? 'completed' : '') + '" data-id="' + t.id + '">'
+            + '<div class="task-row">'
+            + '<label class="checkbox-wrapper"><input type="checkbox" ' + (t.completed ? 'checked' : '') + '><div class="checkmark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></label>'
+            + '<div class="task-content"><span class="task-text">' + this.esc(t.text) + '</span></div>'
+            + '<div class="task-actions">'
+            + badge
+            + '<input type="date" class="date-input" value="' + (t.dueDate || '') + '">'
+            + '<button class="btn-action btn-comment ' + (t.comment ? 'active' : '') + '" title="Commenter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></button>'
+            + '<button class="btn-action btn-delete" title="Supprimer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></button>'
+            + '</div>'
+            + '</div>'
+            + '<div class="comment-section ' + (t.comment ? 'open' : '') + '"><div class="comment-inner"><textarea placeholder="Ajouter un commentaire...">' + this.esc(t.comment) + '</textarea></div></div>'
+            + '</div>';
+        }).join('');
+
+        // Bind events
+        list.querySelectorAll('.task-item').forEach(el => {
+          const id = Number(el.dataset.id);
+          el.querySelector('input[type="checkbox"]').addEventListener('change', () => this.toggleTask(id));
+          el.querySelector('.btn-delete').addEventListener('click', () => this.deleteTask(id));
+          el.querySelector('.btn-comment').addEventListener('click', () => this.toggleComment(id));
+          el.querySelector('textarea').addEventListener('input', e => this.updateComment(id, e.target.value));
+
+          // Date: listen to ALL events for maximum reliability
+          const dateInput = el.querySelector('.date-input');
+          const handleDate = () => {
+            const val = dateInput.value || null;
+            const t = this.tasks.find(x => x.id === id);
+            if (!t) return;
+            if (t.dueDate !== val) {
+              t.dueDate = val;
+              t.reminded = false;
+              this.save();
+              this.updateBadgeFor(el, t);
+            }
+          };
+          dateInput.addEventListener('change', handleDate);
+          dateInput.addEventListener('input', handleDate);
+          dateInput.addEventListener('blur', handleDate);
+        });
+
+        this.updateCounter();
+      }
+
+      updateCounter() {
+        const r = this.tasks.filter(t => !t.completed).length;
+        this.el('counter').innerHTML = '<strong>' + r + '</strong> tâche' + (r !== 1 ? 's' : '') + ' restante' + (r !== 1 ? 's' : '') + ' sur ' + this.tasks.length;
+      }
+
+      esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => new TodoApp());
+  </script>
+</body>
+</html>
