@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; connect-src https://*.supabase.co; img-src 'self' data:;">
   <title>Todo App</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -126,6 +126,27 @@
     .toast-msg{font-size:.8rem;color:var(--text-muted)}
     .toast-close{background:none;border:none;color:var(--text-muted);cursor:pointer;padding:2px}
 
+    /* Auth */
+    .auth-card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:28px 24px;margin-bottom:24px;transition:background var(--transition)}
+    .auth-tabs{display:flex;gap:0;margin-bottom:20px;border-bottom:2px solid var(--border)}
+    .auth-tab{flex:1;padding:10px;font-family:inherit;font-size:.95rem;font-weight:600;background:none;border:none;color:var(--text-muted);cursor:pointer;transition:color var(--transition),border-color var(--transition);border-bottom:2px solid transparent;margin-bottom:-2px}
+    .auth-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+    .auth-tab:hover{color:var(--text)}
+    .auth-form{display:flex;flex-direction:column;gap:12px}
+    .auth-form input{border:2px solid var(--border);border-radius:8px;padding:12px 16px;font-family:inherit;font-size:.95rem;color:var(--text);background:var(--input-bg);outline:none;transition:border-color var(--transition)}
+    .auth-form input::placeholder{color:var(--text-muted)}
+    .auth-form input:focus{border-color:var(--accent)}
+    .btn-auth{background:var(--accent-gradient);color:#fff;border:none;border-radius:8px;padding:12px;font-family:inherit;font-size:.95rem;font-weight:600;cursor:pointer;transition:transform var(--transition),box-shadow var(--transition)}
+    .btn-auth:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(255,77,77,.4)}
+    .btn-auth:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none}
+    .btn-skip{background:none;border:1px solid var(--border);border-radius:8px;padding:10px;font-family:inherit;font-size:.85rem;font-weight:500;color:var(--text-muted);cursor:pointer;transition:all var(--transition);margin-top:4px}
+    .btn-skip:hover{border-color:var(--accent);color:var(--accent)}
+    .auth-error{color:#e74c3c;font-size:.85rem;min-height:1.2em}
+    .user-bar{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+    .user-email{font-size:.85rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .btn-logout{background:none;border:1px solid var(--border);border-radius:8px;padding:5px 12px;font-family:inherit;font-size:.78rem;font-weight:500;color:var(--text-muted);cursor:pointer;transition:all var(--transition);white-space:nowrap}
+    .btn-logout:hover{border-color:#e74c3c;color:#e74c3c}
+
     @keyframes slideIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
     @keyframes slideOut{from{opacity:1;transform:translateX(0);max-height:300px}to{opacity:0;transform:translateX(30px);max-height:0;margin:0}}
     @keyframes pulse{0%{transform:scale(1)}50%{transform:scale(1.02)}100%{transform:scale(1)}}
@@ -142,6 +163,7 @@
       .toast{min-width:auto}
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
   <div class="toast-container" id="toastContainer"></div>
@@ -155,13 +177,30 @@
         </button>
       </div>
       <p>Organisez votre journée simplement</p>
+      <div class="user-bar" id="userBar" style="display:none">
+        <span class="user-email" id="userEmail"></span>
+        <button class="btn-logout" id="btnLogout">Déconnexion</button>
+      </div>
     </div>
-    <div class="input-card">
+    <div class="auth-card" id="authSection">
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-tab="login">Connexion</button>
+        <button class="auth-tab" data-tab="signup">Inscription</button>
+      </div>
+      <form class="auth-form" id="authForm" autocomplete="on">
+        <input type="email" id="authEmail" placeholder="Email" required autocomplete="email">
+        <input type="password" id="authPassword" placeholder="Mot de passe" required minlength="6" autocomplete="current-password">
+        <div class="auth-error" id="authError"></div>
+        <button type="submit" class="btn-auth" id="btnAuth">Se connecter</button>
+      </form>
+      <button class="btn-skip" id="btnSkip">Continuer sans compte</button>
+    </div>
+    <div class="input-card" id="inputCard" style="display:none">
       <input type="text" id="taskInput" placeholder="Ajouter une nouvelle tâche..." autocomplete="off" maxlength="300">
       <button class="btn-add" id="btnAdd">Ajouter</button>
     </div>
-    <div class="task-list" id="taskList"></div>
-    <div class="footer" id="footer">
+    <div class="task-list" id="taskList" style="display:none"></div>
+    <div class="footer" id="footer" style="display:none">
       <span class="counter" id="counter"></span>
       <div class="footer-actions">
         <button class="btn-io" id="btnExport" title="Exporter les tâches"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
@@ -174,27 +213,289 @@
   <script>
     (function(){const s=localStorage.getItem('theme');document.documentElement.setAttribute('data-theme',s||'dark')})();
 
+    // ── Supabase config ─────────────────────────────────────────
+    const SUPABASE_URL = 'https://VOTRE_URL.supabase.co';
+    const SUPABASE_ANON_KEY = 'VOTRE_CLE';
+    let _supabase = null;
+    try {
+      if (typeof supabase !== 'undefined' && SUPABASE_URL.indexOf('VOTRE_URL') === -1) {
+        _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      }
+    } catch(e) { console.warn('Supabase CDN indisponible, mode hors-ligne'); }
+
     class TodoApp {
       constructor() {
-        this.tasks = this.load();
         this.el = id => document.getElementById(id);
         this.clockSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>';
+        this.user = null;
+        this.authMode = 'login'; // 'login' or 'signup'
+        this._commentTimers = {};
+
+        // Boot from localStorage first (instant)
+        this.tasks = this.loadLocal();
         this.bind();
+        this.bindAuth();
         this.render();
         this.initReminders();
-        // Safety net: save all date inputs every 2 seconds
         setInterval(() => this.saveAllDates(), 2000);
+
+        // Then check for existing Supabase session
+        this.checkSession();
       }
 
-      load() {
+      // ── Auth ────────────────────────────────────────────────────
+
+      async checkSession() {
+        if (!_supabase) return;
+        try {
+          const { data } = await _supabase.auth.getSession();
+          if (data.session) {
+            this.user = data.session.user;
+            await this.loadFromSupabase();
+            this.updateAuthUI();
+            this.render();
+          }
+          // Listen for future auth changes
+          _supabase.auth.onAuthStateChange((event, session) => {
+            this.handleAuthChange(event, session);
+          });
+        } catch(e) { console.warn('Session check failed', e); }
+      }
+
+      handleAuthChange(event, session) {
+        if (event === 'SIGNED_IN' && session) {
+          this.user = session.user;
+          this.updateAuthUI();
+        } else if (event === 'SIGNED_OUT') {
+          this.user = null;
+          this.updateAuthUI();
+        }
+      }
+
+      async signUp(email, password) {
+        if (!_supabase) { this.showToast('Erreur', 'Supabase non configuré'); return; }
+        const btn = this.el('btnAuth');
+        btn.disabled = true;
+        this.el('authError').textContent = '';
+        try {
+          const { data, error } = await _supabase.auth.signUp({ email, password });
+          if (error) { this.el('authError').textContent = this.translateAuthError(error.message); return; }
+          this.user = data.user;
+          if (data.session) {
+            await this.syncOnLogin();
+            await this.loadFromSupabase();
+          } else {
+            this.showToast('Inscription réussie', 'Vérifiez votre email pour confirmer le compte');
+            return;
+          }
+          this.updateAuthUI();
+          this.render();
+        } catch(e) {
+          this.el('authError').textContent = 'Erreur réseau';
+        } finally { btn.disabled = false; }
+      }
+
+      async signIn(email, password) {
+        if (!_supabase) { this.showToast('Erreur', 'Supabase non configuré'); return; }
+        const btn = this.el('btnAuth');
+        btn.disabled = true;
+        this.el('authError').textContent = '';
+        try {
+          const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+          if (error) { this.el('authError').textContent = this.translateAuthError(error.message); return; }
+          this.user = data.user;
+          await this.syncOnLogin();
+          await this.loadFromSupabase();
+          this.updateAuthUI();
+          this.render();
+        } catch(e) {
+          this.el('authError').textContent = 'Erreur réseau';
+        } finally { btn.disabled = false; }
+      }
+
+      async signOut() {
+        if (_supabase) {
+          try { await _supabase.auth.signOut(); } catch(e) {}
+        }
+        this.user = null;
+        this.updateAuthUI();
+      }
+
+      updateAuthUI() {
+        const auth = this.el('authSection');
+        const bar = this.el('userBar');
+        const app = this.el('inputCard');
+        const list = this.el('taskList');
+        const footer = this.el('footer');
+
+        if (this.user || this._skipped) {
+          auth.style.display = 'none';
+          bar.style.display = this.user ? 'flex' : 'none';
+          if (this.user) this.el('userEmail').textContent = this.user.email;
+          app.style.display = 'flex';
+          list.style.display = 'flex';
+          // footer visibility managed by render()
+        } else {
+          auth.style.display = 'block';
+          bar.style.display = 'none';
+          app.style.display = 'none';
+          list.style.display = 'none';
+          footer.style.display = 'none';
+        }
+      }
+
+      bindAuth() {
+        // Tab switching
+        this.el('authSection').querySelectorAll('.auth-tab').forEach(tab => {
+          tab.addEventListener('click', () => {
+            this.el('authSection').querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            this.authMode = tab.dataset.tab === 'signup' ? 'signup' : 'login';
+            this.el('btnAuth').textContent = this.authMode === 'signup' ? "S'inscrire" : 'Se connecter';
+            this.el('authPassword').autocomplete = this.authMode === 'signup' ? 'new-password' : 'current-password';
+            this.el('authError').textContent = '';
+          });
+        });
+
+        // Form submit
+        this.el('authForm').addEventListener('submit', e => {
+          e.preventDefault();
+          const email = this.el('authEmail').value.trim();
+          const password = this.el('authPassword').value;
+          if (!email || !password) return;
+          if (this.authMode === 'signup') this.signUp(email, password);
+          else this.signIn(email, password);
+        });
+
+        // Skip (continue without account)
+        this.el('btnSkip').addEventListener('click', () => {
+          this._skipped = true;
+          this.updateAuthUI();
+          this.render();
+        });
+
+        // Logout
+        this.el('btnLogout').addEventListener('click', () => this.signOut());
+      }
+
+      translateAuthError(msg) {
+        const map = {
+          'Invalid login credentials': 'Email ou mot de passe incorrect',
+          'Email not confirmed': 'Email non confirmé, vérifiez votre boîte mail',
+          'User already registered': 'Cet email est déjà utilisé',
+          'Password should be at least 6 characters': 'Le mot de passe doit faire au moins 6 caractères',
+          'Unable to validate email address: invalid format': 'Format d\'email invalide',
+          'Email rate limit exceeded': 'Trop de tentatives, réessayez plus tard',
+          'For security purposes, you can only request this once every 60 seconds': 'Attendez 60 secondes avant de réessayer',
+        };
+        return map[msg] || msg;
+      }
+
+      // ── Supabase sync ──────────────────────────────────────────
+
+      taskToRow(t) {
+        return {
+          id: t.id,
+          user_id: this.user.id,
+          text: t.text,
+          completed: t.completed,
+          comment: t.comment || '',
+          due_date: t.dueDate || null,
+          reminded: t.reminded,
+          created_at: new Date(t.id).toISOString()
+        };
+      }
+
+      rowToTask(r) {
+        let dd = r.due_date || null;
+        if (dd && dd.includes('T')) dd = dd.split('T')[0];
+        if (dd && !/^\d{4}-\d{2}-\d{2}$/.test(dd)) dd = null;
+        return {
+          id: Number(r.id),
+          text: (r.text || '').slice(0, 300),
+          completed: !!r.completed,
+          comment: (r.comment || '').slice(0, 1000),
+          dueDate: dd,
+          reminded: !!r.reminded
+        };
+      }
+
+      async loadFromSupabase() {
+        if (!_supabase || !this.user) return;
+        try {
+          const { data, error } = await _supabase
+            .from('todos')
+            .select('*')
+            .eq('user_id', this.user.id)
+            .order('created_at', { ascending: false });
+          if (error) { console.error('loadFromSupabase', error); return; }
+          this.tasks = data.map(r => this.rowToTask(r));
+          this.saveLocal();
+        } catch(e) { console.error('loadFromSupabase', e); }
+      }
+
+      async saveToSupabase(task) {
+        if (!_supabase || !this.user) return;
+        try {
+          const { error } = await _supabase
+            .from('todos')
+            .upsert(this.taskToRow(task), { onConflict: 'id' });
+          if (error) console.error('saveToSupabase', error);
+        } catch(e) { console.error('saveToSupabase', e); }
+      }
+
+      async deleteFromSupabase(id) {
+        if (!_supabase || !this.user) return;
+        try {
+          const { error } = await _supabase
+            .from('todos')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', this.user.id);
+          if (error) console.error('deleteFromSupabase', error);
+        } catch(e) { console.error('deleteFromSupabase', e); }
+      }
+
+      async bulkDeleteFromSupabase(ids) {
+        if (!_supabase || !this.user || !ids.length) return;
+        try {
+          const { error } = await _supabase
+            .from('todos')
+            .delete()
+            .in('id', ids)
+            .eq('user_id', this.user.id);
+          if (error) console.error('bulkDeleteFromSupabase', error);
+        } catch(e) { console.error('bulkDeleteFromSupabase', e); }
+      }
+
+      async syncOnLogin() {
+        if (!_supabase || !this.user) return;
+        // Get existing cloud task IDs
+        try {
+          const { data: existing } = await _supabase
+            .from('todos')
+            .select('id')
+            .eq('user_id', this.user.id);
+          const cloudIds = new Set((existing || []).map(r => Number(r.id)));
+          // Push local tasks not yet in cloud
+          const toUpload = this.tasks.filter(t => !cloudIds.has(t.id));
+          if (toUpload.length) {
+            const rows = toUpload.map(t => this.taskToRow(t));
+            const { error } = await _supabase.from('todos').upsert(rows, { onConflict: 'id' });
+            if (error) console.error('syncOnLogin upsert', error);
+          }
+        } catch(e) { console.error('syncOnLogin', e); }
+      }
+
+      // ── localStorage ───────────────────────────────────────────
+
+      loadLocal() {
         try {
           const raw = JSON.parse(localStorage.getItem('todos'));
           if (!Array.isArray(raw)) return [];
           return raw.filter(t => t && typeof t.id === 'number').map(t => {
-            // Normalize: strip time part if old datetime-local format
             let dd = (typeof t.dueDate === 'string') ? t.dueDate : null;
             if (dd && dd.includes('T')) dd = dd.split('T')[0];
-            // Validate date format YYYY-MM-DD
             if (dd && !/^\d{4}-\d{2}-\d{2}$/.test(dd)) dd = null;
             return {
               id: Number(t.id),
@@ -208,7 +509,7 @@
         } catch(e) { return []; }
       }
 
-      save() {
+      saveLocal() {
         try {
           localStorage.setItem('todos', JSON.stringify(this.tasks));
         } catch(e) {
@@ -216,9 +517,15 @@
         }
       }
 
+      // Unified save: localStorage + async Supabase
+      save() {
+        this.saveLocal();
+      }
+
       // Periodically scan all date inputs and save their values
       saveAllDates() {
         let changed = false;
+        const tasksToSync = [];
         document.querySelectorAll('.task-item').forEach(el => {
           const id = Number(el.dataset.id);
           const input = el.querySelector('.date-input');
@@ -229,11 +536,14 @@
             t.dueDate = val;
             t.reminded = false;
             changed = true;
-            // Update badge in-place
+            tasksToSync.push(t);
             this.updateBadgeFor(el, t);
           }
         });
-        if (changed) this.save();
+        if (changed) {
+          this.save();
+          tasksToSync.forEach(t => this.saveToSupabase(t));
+        }
       }
 
       // Update or create badge for a specific task element
@@ -300,6 +610,10 @@
             this.save();
             this.render();
             this.showToast('Import réussi', imported.length + ' tâche(s) importée(s)');
+            // Sync all imported tasks to Supabase
+            if (this.user) {
+              imported.forEach(t => this.saveToSupabase(t));
+            }
           } catch(err) {
             this.showToast('Import échoué', 'Fichier JSON invalide');
           }
@@ -311,13 +625,14 @@
       addTask() {
         const text = this.el('taskInput').value.trim();
         if (!text) return;
-        // Save any unsaved date changes before re-rendering
         this.saveAllDates();
-        this.tasks.unshift({ id: Date.now(), text, completed: false, comment: '', dueDate: null, reminded: false });
+        const task = { id: Date.now(), text, completed: false, comment: '', dueDate: null, reminded: false };
+        this.tasks.unshift(task);
         this.el('taskInput').value = '';
         this.el('taskInput').focus();
         this.save();
         this.render();
+        this.saveToSupabase(task);
       }
 
       toggleTask(id) {
@@ -326,6 +641,7 @@
         if (!t) return;
         t.completed = !t.completed;
         this.save();
+        this.saveToSupabase(t);
         const el = document.querySelector(`[data-id="${id}"]`);
         if (el) {
           el.classList.toggle('completed', t.completed);
@@ -344,6 +660,7 @@
           this.tasks = this.tasks.filter(t => t.id !== id);
           this.save();
           this.render();
+          this.deleteFromSupabase(id);
         }, { once: true });
       }
 
@@ -361,6 +678,9 @@
         this.save();
         const b = document.querySelector(`[data-id="${id}"] .btn-comment`);
         if (b) b.classList.toggle('active', v.trim().length > 0);
+        // Debounced Supabase sync (1s)
+        clearTimeout(this._commentTimers[id]);
+        this._commentTimers[id] = setTimeout(() => this.saveToSupabase(t), 1000);
       }
 
       getDueClass(d) {
@@ -376,7 +696,6 @@
       }
 
       formatDue(d) {
-        // d is "YYYY-MM-DD" from input type="date"
         const parts = d.split('-');
         const due = new Date(parts[0], parts[1] - 1, parts[2]);
         const now = new Date(); now.setHours(0, 0, 0, 0);
@@ -435,11 +754,17 @@
         this.saveAllDates();
         const els = document.querySelectorAll('.task-item.completed');
         if (!els.length) return;
+        const completedIds = this.tasks.filter(t => t.completed).map(t => t.id);
         let n = els.length;
         els.forEach(el => {
           el.classList.add('removing');
           el.addEventListener('animationend', () => {
-            if (--n === 0) { this.tasks = this.tasks.filter(t => !t.completed); this.save(); this.render(); }
+            if (--n === 0) {
+              this.tasks = this.tasks.filter(t => !t.completed);
+              this.save();
+              this.render();
+              this.bulkDeleteFromSupabase(completedIds);
+            }
           }, { once: true });
         });
       }
@@ -447,6 +772,9 @@
       render() {
         const list = this.el('taskList');
         const footer = this.el('footer');
+
+        // Don't show app content if not authenticated/skipped
+        if (!this.user && !this._skipped) return;
 
         if (!this.tasks.length) {
           list.innerHTML = '<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><p>Aucune tâche pour le moment</p></div>';
@@ -488,7 +816,6 @@
           el.querySelector('.btn-comment').addEventListener('click', () => this.toggleComment(id));
           el.querySelector('textarea').addEventListener('input', e => this.updateComment(id, e.target.value));
 
-          // Date: listen to ALL events for maximum reliability
           const dateInput = el.querySelector('.date-input');
           const handleDate = () => {
             const val = dateInput.value || null;
@@ -499,6 +826,7 @@
               t.reminded = false;
               this.save();
               this.updateBadgeFor(el, t);
+              this.saveToSupabase(t);
             }
           };
           dateInput.addEventListener('change', handleDate);
