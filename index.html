@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'self' 'unsafe-inline'; img-src 'self' data:;">
   <title>Todo App</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -151,7 +152,7 @@
       <p>Organisez votre journée simplement</p>
     </div>
     <div class="input-card">
-      <input type="text" id="taskInput" placeholder="Ajouter une nouvelle tâche..." autocomplete="off">
+      <input type="text" id="taskInput" placeholder="Ajouter une nouvelle tâche..." autocomplete="off" maxlength="300">
       <button class="btn-add" id="btnAdd">Ajouter</button>
     </div>
     <div class="task-list" id="taskList"></div>
@@ -177,18 +178,32 @@
 
       load() {
         try {
-          return (JSON.parse(localStorage.getItem('todos')) || []).map(t => {
-            // Normalize: strip time part if old datetime-local format "YYYY-MM-DDThh:mm"
-            let dd = t.dueDate || null;
+          const raw = JSON.parse(localStorage.getItem('todos'));
+          if (!Array.isArray(raw)) return [];
+          return raw.filter(t => t && typeof t.id === 'number').map(t => {
+            // Normalize: strip time part if old datetime-local format
+            let dd = (typeof t.dueDate === 'string') ? t.dueDate : null;
             if (dd && dd.includes('T')) dd = dd.split('T')[0];
-            return { id: t.id, text: t.text || '', completed: !!t.completed,
-              comment: t.comment || '', dueDate: dd, reminded: !!t.reminded };
+            // Validate date format YYYY-MM-DD
+            if (dd && !/^\d{4}-\d{2}-\d{2}$/.test(dd)) dd = null;
+            return {
+              id: Number(t.id),
+              text: (typeof t.text === 'string' ? t.text : '').slice(0, 300),
+              completed: !!t.completed,
+              comment: (typeof t.comment === 'string' ? t.comment : '').slice(0, 1000),
+              dueDate: dd,
+              reminded: !!t.reminded
+            };
           });
         } catch(e) { return []; }
       }
 
       save() {
-        localStorage.setItem('todos', JSON.stringify(this.tasks));
+        try {
+          localStorage.setItem('todos', JSON.stringify(this.tasks));
+        } catch(e) {
+          this.showToast('Erreur de sauvegarde', 'Stockage plein ou indisponible');
+        }
       }
 
       // Periodically scan all date inputs and save their values
@@ -390,18 +405,21 @@
             ? '<span class="due-badge ' + cls + '">' + this.clockSvg + '<span class="due-label">' + this.esc(this.formatDue(t.dueDate)) + '</span></span>'
             : '';
 
-          return '<div class="task-item ' + (t.completed ? 'completed' : '') + '" data-id="' + t.id + '">'
+          const safeId = Number(t.id);
+          const safeDate = t.dueDate ? this.esc(t.dueDate) : '';
+
+          return '<div class="task-item ' + (t.completed ? 'completed' : '') + '" data-id="' + safeId + '">'
             + '<div class="task-row">'
             + '<label class="checkbox-wrapper"><input type="checkbox" ' + (t.completed ? 'checked' : '') + '><div class="checkmark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div></label>'
             + '<div class="task-content"><span class="task-text">' + this.esc(t.text) + '</span></div>'
             + '<div class="task-actions">'
             + badge
-            + '<input type="date" class="date-input" value="' + (t.dueDate || '') + '">'
+            + '<input type="date" class="date-input" value="' + safeDate + '">'
             + '<button class="btn-action btn-comment ' + (t.comment ? 'active' : '') + '" title="Commenter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></button>'
             + '<button class="btn-action btn-delete" title="Supprimer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/></svg></button>'
             + '</div>'
             + '</div>'
-            + '<div class="comment-section ' + (t.comment ? 'open' : '') + '"><div class="comment-inner"><textarea placeholder="Ajouter un commentaire...">' + this.esc(t.comment) + '</textarea></div></div>'
+            + '<div class="comment-section ' + (t.comment ? 'open' : '') + '"><div class="comment-inner"><textarea placeholder="Ajouter un commentaire..." maxlength="1000">' + this.esc(t.comment) + '</textarea></div></div>'
             + '</div>';
         }).join('');
 
