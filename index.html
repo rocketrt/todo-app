@@ -639,11 +639,13 @@
         // Header
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(22);
-        doc.setTextColor(...TEXT_DARK);
-        doc.text('Mes ', W / 2, y + 8, { align: 'center' });
         const mesW = doc.getTextWidth('Mes ');
+        const tachesW = doc.getTextWidth('T\u00e2ches');
+        const startX = (W - mesW - tachesW) / 2;
+        doc.setTextColor(...TEXT_DARK);
+        doc.text('Mes ', startX, y + 8);
         doc.setTextColor(...RED);
-        doc.text('Tâches', W / 2 + mesW / 2, y + 8, { align: 'center' });
+        doc.text('T\u00e2ches', startX + mesW, y + 8);
         y += 14;
 
         // Subtitle: date + counter
